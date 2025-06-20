@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Success Hub</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #e6f9f0;
+    }
+    header {
+      background-color: #009688;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      font-size: 2em;
+    }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      background: #b2dfdb;
+      padding: 10px;
+    }
+    nav button {
+      background-color: #00796b;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .section {
+      display: none;
+      padding: 20px;
+    }
+    .section.active {
+      display: block;
+    }
+    form {
+      max-width: 500px;
+      margin: auto;
+    }
+    form label {
+      display: block;
+      margin-top: 15px;
+    }
+    form input, form textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+    }
+    form button {
+      margin-top: 20px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      cursor: pointer;
+    }
+    .task-item, .job-item {
+      background: white;
+      border: 1px solid #ccc;
+      margin: 10px auto;
+      padding: 10px;
+      max-width: 500px;
+      border-radius: 8px;
+    }
+    .completed {
+      text-decoration: line-through;
+      background: #e0f2f1;
+    }
+    .rescheduled {
+      background: #fff9c4;
+    }
+  </style>
+</head>
+<body>
+  <header>Welcome to Success Hub</header>
+  <nav>
+    <button onclick="showSection('timetable')">Timetable Setting</button>
+    <button onclick="showSection('savedTasks')">Saved Tasks</button>
+    <button onclick="showSection('jobs')">Jobs</button>
+    <button onclick="showSection('savedJobs')">Saved Jobs</button>
+    <button onclick="showSection('performance')">Performance</button>
+    <button onclick="showSection('history')">History</button>
+  </nav>
+
+  <section id="timetable" class="section active">
+    <form id="taskForm">
+      <label>Subject or Task</label>
+      <input type="text" id="subject" required>
+      <label>Time</label>
+      <input type="text" id="time" required>
+      <label>Topic</label>
+      <textarea id="topic" required></textarea>
+      <button type="submit">Save and Refresh</button>
+    </form>
+  </section>
+
+  <section id="jobs" class="section">
+    <form id="jobForm">
+      <label>Company</label>
+      <input type="text" id="company" required>
+      <label>Role</label>
+      <input type="text" id="role" required>
+      <label>Platform</label>
+      <input type="text" id="platform" required>
+      <label>LPA</label>
+      <input type="text" id="lpa" required>
+      <button type="submit">Save and Refresh</button>
+    </form>
+  </section>
+
+  <section id="savedTasks" class="section"><h2>Saved Tasks</h2><div id="taskList"></div></section>
+  <section id="savedJobs" class="section"><h2>Saved Jobs</h2><div id="jobList"></div></section>
+  <section id="performance" class="section"><h2>Performance Streak</h2><div id="streak"></div><div id="todayCompletedList"></div></section>
+  <section id="history" class="section"><h2>Completed Tasks History</h2><div id="historyList"></div></section>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc
+    } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDonGqxUpnkyfomEYmNWo4gMKOsYLgCpqg",
+      authDomain: "successhub-ffc38.firebaseapp.com",
+      projectId: "successhub-ffc38",
+      storageBucket: "successhub-ffc38.firebasestorage.app",
+      messagingSenderId: "114888372331",
+      appId: "1:114888372331:web:13b3389c9c6b62f6b4012e",
+      measurementId: "G-THW2PDLHJM"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const tasksRef = collection(db, 'tasks');
+    const jobsRef = collection(db, 'jobs');
+
+    const taskForm = document.getElementById('taskForm');
+    taskForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const subject = document.getElementById('subject').value;
+      const time = document.getElementById('time').value;
+      const topic = document.getElementById('topic').value;
+      try {
+        await addDoc(tasksRef, { subject, time, topic, completed: false, createdAt: new Date().toISOString() });
+        alert("✅ Task saved successfully!");
+        taskForm.reset();
+        location.reload();
+      } catch (error) {
+        alert("❌ Error saving task: " + error.message);
+      }
+    });
+
+    const jobForm = document.getElementById('jobForm');
+    jobForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const company = document.getElementById('company').value;
+      const role = document.getElementById('role').value;
+      const platform = document.getElementById('platform').value;
+      const lpa = document.getElementById('lpa').value;
+      try {
+        await addDoc(jobsRef, { company, role, platform, lpa });
+        alert("✅ Job saved successfully!");
+        jobForm.reset();
+        location.reload();
+      } catch (error) {
+        alert("❌ Error saving job: " + error.message);
+      }
+    });
+
+    function showSection(id) {
+      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    window.showSection = showSection;
+
+    window.markComplete = async id => {
+      const ref = doc(db, 'tasks', id);
+      await updateDoc(ref, { completed: true });
+    };
+
+    window.reschedule = async id => {
+      const newTime = prompt("Enter new time:");
+      if (newTime) {
+        const ref = doc(db, 'tasks', id);
+        await updateDoc(ref, { time: newTime });
+      }
+    };
+
+    window.deleteJob = async id => {
+      const ref = doc(db, 'jobs', id);
+      await deleteDoc(ref);
+    };
+
+    onSnapshot(tasksRef, snap => {
+      const tasks = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const today = new Date().toDateString();
+      const taskList = document.getElementById('taskList');
+      const streak = document.getElementById('streak');
+      const completedTodayList = document.getElementById('todayCompletedList');
+
+      taskList.innerHTML = '';
+      completedTodayList.innerHTML = '';
+
+      const todaysTasks = tasks.filter(t => new Date(t.createdAt).toDateString() === today);
+      const completedToday = todaysTasks.filter(t => t.completed);
+      const incomplete = todaysTasks.filter(t => !t.completed);
+
+      tasks.forEach(task => {
+        const div = document.createElement('div');
+        div.className = 'task-item' + (task.completed ? ' completed' : '');
+        div.innerHTML = `
+          <strong>${task.subject}</strong> - ${task.time}<br>
+          <em>${task.topic}</em><br>
+          <button onclick="markComplete('${task.id}')">Complete</button>
+          <button onclick="reschedule('${task.id}')">Reschedule</button>
+        `;
+        taskList.appendChild(div);
+      });
+
+      streak.textContent = incomplete.length === 0 && todaysTasks.length
+        ? "✅ You're increasing your potential! Go ahead champ!"
+        : incomplete.length ? `⚠️ ${incomplete.length} backlog task(s)! Complete ASAP!` : "No tasks scheduled today.";
+
+      completedTodayList.innerHTML = completedToday.map(t => `<p>${t.subject} - ${t.topic}</p>`).join('');
+
+      document.getElementById('historyList').innerHTML = tasks.filter(t => t.completed)
+        .map(t => `<p>${t.subject} - ${t.topic}</p>`).join('');
+    });
+
+    onSnapshot(jobsRef, snap => {
+      const jobs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const jobList = document.getElementById('jobList');
+      jobList.innerHTML = '';
+      jobs.forEach(job => {
+        const div = document.createElement('div');
+        div.className = 'job-item';
+        div.innerHTML = `
+          <strong>${job.company}</strong> - ${job.role} (${job.platform})<br>
+          LPA: ${job.lpa}<br>
+          <button onclick="deleteJob('${job.id}')">Delete</button>
+        `;
+        jobList.appendChild(div);
+      });
+    });
+  </script>
+</body>
+</html>

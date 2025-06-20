@@ -62,7 +62,7 @@
       padding: 10px 15px;
       cursor: pointer;
     }
-    .task-item, .job-item {
+    .task-item, .job-item, .note-item {
       background: white;
       border: 1px solid #ccc;
       margin: 10px auto;
@@ -74,31 +74,46 @@
       text-decoration: line-through;
       background: #e0f2f1;
     }
-    .rescheduled {
-      background: #fff9c4;
-    }
   </style>
 </head>
 <body>
   <header>Welcome to Success Hub</header>
   <nav>
-    <button onclick="showSection('timetable')">Timetable Setting</button>
+    <button onclick="showSection('timetable')">Timetable</button>
+    <button onclick="showSection('calendarTasks')">Calendar Task</button>
     <button onclick="showSection('savedTasks')">Saved Tasks</button>
     <button onclick="showSection('jobs')">Jobs</button>
     <button onclick="showSection('savedJobs')">Saved Jobs</button>
     <button onclick="showSection('performance')">Performance</button>
     <button onclick="showSection('history')">History</button>
+    <button onclick="showSection('notes')">Notes</button>
+    <button onclick="showSection('savedNotes')">Saved Notes</button>
   </nav>
 
+  <!-- Sections -->
   <section id="timetable" class="section active">
     <form id="taskForm">
-      <label>Subject or Task</label>
+      <label>Subject</label>
       <input type="text" id="subject" required>
       <label>Time</label>
       <input type="text" id="time" required>
       <label>Topic</label>
       <textarea id="topic" required></textarea>
-      <button type="submit">Save and Refresh</button>
+      <button type="submit">Save Task</button>
+    </form>
+  </section>
+
+  <section id="calendarTasks" class="section">
+    <form id="calendarTaskForm">
+      <label>Select Date</label>
+      <input type="date" id="calendarDate" required>
+      <label>Task</label>
+      <input type="text" id="calendarTask" required>
+      <label>Time</label>
+      <input type="text" id="calendarTime" required>
+      <label>Topic</label>
+      <textarea id="calendarTopic" required></textarea>
+      <button type="submit">Save Calendar Task</button>
     </form>
   </section>
 
@@ -112,87 +127,108 @@
       <input type="text" id="platform" required>
       <label>LPA</label>
       <input type="text" id="lpa" required>
-      <button type="submit">Save and Refresh</button>
+      <button type="submit">Save Job</button>
     </form>
   </section>
 
+  <section id="notes" class="section">
+    <form id="noteForm">
+      <label>Write a Note</label>
+      <textarea id="noteText" required></textarea>
+      <button type="submit">Save Note</button>
+    </form>
+  </section>
+
+  <!-- Display Sections -->
   <section id="savedTasks" class="section"><h2>Saved Tasks</h2><div id="taskList"></div></section>
   <section id="savedJobs" class="section"><h2>Saved Jobs</h2><div id="jobList"></div></section>
-  <section id="performance" class="section"><h2>Performance Streak</h2><div id="streak"></div><div id="todayCompletedList"></div></section>
-  <section id="history" class="section"><h2>Completed Tasks History</h2><div id="historyList"></div></section>
+  <section id="savedNotes" class="section"><h2>Saved Notes</h2><div id="noteList"></div></section>
+  <section id="performance" class="section"><h2>Performance</h2><div id="streak"></div><div id="todayCompletedList"></div><div id="todayIncompleteList"></div></section>
+  <section id="history" class="section"><h2>Completed History</h2><div id="historyList"></div><button onclick="clearHistory()">Clear All History</button></section>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
     import {
-      getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc
+      getFirestore, collection, addDoc, getDocs, onSnapshot, doc, updateDoc, deleteDoc
     } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDonGqxUpnkyfomEYmNWo4gMKOsYLgCpqg",
       authDomain: "successhub-ffc38.firebaseapp.com",
       projectId: "successhub-ffc38",
-      storageBucket: "successhub-ffc38.firebasestorage.app",
+      storageBucket: "successhub-ffc38.appspot.com",
       messagingSenderId: "114888372331",
-      appId: "1:114888372331:web:13b3389c9c6b62f6b4012e",
-      measurementId: "G-THW2PDLHJM"
+      appId: "1:114888372331:web:13b3389c9c6b62f6b4012e"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const tasksRef = collection(db, 'tasks');
     const jobsRef = collection(db, 'jobs');
+    const calendarTasksRef = collection(db, 'calendarTasks');
+    const notesRef = collection(db, 'notes');
 
-    const taskForm = document.getElementById('taskForm');
-    taskForm.addEventListener('submit', async e => {
+    window.showSection = function(id) {
+      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    };
+
+    document.getElementById('taskForm').addEventListener('submit', async e => {
       e.preventDefault();
       const subject = document.getElementById('subject').value;
       const time = document.getElementById('time').value;
       const topic = document.getElementById('topic').value;
-      try {
-        await addDoc(tasksRef, { subject, time, topic, completed: false, createdAt: new Date().toISOString() });
-        alert("✅ Task saved successfully!");
-        taskForm.reset();
-        location.reload();
-      } catch (error) {
-        alert("❌ Error saving task: " + error.message);
-      }
+      await addDoc(tasksRef, { subject, time, topic, completed: false, createdAt: new Date().toISOString() });
+      alert("✅ Task saved!");
+      e.target.reset();
     });
 
-    const jobForm = document.getElementById('jobForm');
-    jobForm.addEventListener('submit', async e => {
+    document.getElementById('calendarTaskForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const date = document.getElementById('calendarDate').value;
+      const task = document.getElementById('calendarTask').value;
+      const time = document.getElementById('calendarTime').value;
+      const topic = document.getElementById('calendarTopic').value;
+      await addDoc(calendarTasksRef, { date, task, time, topic, completed: false });
+      alert("✅ Calendar Task saved!");
+      e.target.reset();
+    });
+
+    document.getElementById('jobForm').addEventListener('submit', async e => {
       e.preventDefault();
       const company = document.getElementById('company').value;
       const role = document.getElementById('role').value;
       const platform = document.getElementById('platform').value;
       const lpa = document.getElementById('lpa').value;
-      try {
-        await addDoc(jobsRef, { company, role, platform, lpa });
-        alert("✅ Job saved successfully!");
-        jobForm.reset();
-        location.reload();
-      } catch (error) {
-        alert("❌ Error saving job: " + error.message);
-      }
+      await addDoc(jobsRef, { company, role, platform, lpa });
+      alert("✅ Job saved!");
+      e.target.reset();
     });
 
-    function showSection(id) {
-      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-    }
+    document.getElementById('noteForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const text = document.getElementById('noteText').value;
+      await addDoc(notesRef, { text, createdAt: new Date().toISOString() });
+      alert("✅ Note saved!");
+      e.target.reset();
+    });
 
-    window.showSection = showSection;
-
-    window.markComplete = async id => {
-      const ref = doc(db, 'tasks', id);
+    window.markComplete = async (id, isCalendar) => {
+      const ref = doc(db, isCalendar ? 'calendarTasks' : 'tasks', id);
       await updateDoc(ref, { completed: true });
     };
 
-    window.reschedule = async id => {
+    window.reschedule = async (id, isCalendar) => {
       const newTime = prompt("Enter new time:");
       if (newTime) {
-        const ref = doc(db, 'tasks', id);
+        const ref = doc(db, isCalendar ? 'calendarTasks' : 'tasks', id);
         await updateDoc(ref, { time: newTime });
       }
+    };
+
+    window.deleteTask = async (id, isCalendar) => {
+      const ref = doc(db, isCalendar ? 'calendarTasks' : 'tasks', id);
+      await deleteDoc(ref);
     };
 
     window.deleteJob = async id => {
@@ -200,55 +236,84 @@
       await deleteDoc(ref);
     };
 
-    onSnapshot(tasksRef, snap => {
-      const tasks = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    window.deleteNote = async id => {
+      const ref = doc(db, 'notes', id);
+      await deleteDoc(ref);
+    };
+
+    window.clearHistory = async () => {
+      const tasks = await getDocs(tasksRef);
+      tasks.forEach(docSnap => {
+        if (docSnap.data().completed) deleteDoc(doc(db, 'tasks', docSnap.id));
+      });
+      const calendarTasks = await getDocs(calendarTasksRef);
+      calendarTasks.forEach(docSnap => {
+        if (docSnap.data().completed) deleteDoc(doc(db, 'calendarTasks', docSnap.id));
+      });
+    };
+
+    onSnapshot(tasksRef, async snap => {
+      const tasks = snap.docs.map(d => ({ id: d.id, ...d.data(), isCalendar: false }));
+      const calendarSnap = await getDocs(calendarTasksRef);
+      const calendarTasks = calendarSnap.docs.map(d => ({ id: d.id, ...d.data(), isCalendar: true }));
+
+      const allTasks = [...tasks, ...calendarTasks];
       const today = new Date().toDateString();
       const taskList = document.getElementById('taskList');
-      const streak = document.getElementById('streak');
       const completedTodayList = document.getElementById('todayCompletedList');
+      const incompleteList = document.getElementById('todayIncompleteList');
+      const historyList = document.getElementById('historyList');
 
-      taskList.innerHTML = '';
-      completedTodayList.innerHTML = '';
+      taskList.innerHTML = completedTodayList.innerHTML = incompleteList.innerHTML = historyList.innerHTML = '';
 
-      const todaysTasks = tasks.filter(t => new Date(t.createdAt).toDateString() === today);
-      const completedToday = todaysTasks.filter(t => t.completed);
-      const incomplete = todaysTasks.filter(t => !t.completed);
-
-      tasks.forEach(task => {
+      allTasks.forEach(task => {
+        const name = task.subject || task.task;
+        const date = task.date || new Date(task.createdAt).toDateString();
         const div = document.createElement('div');
         div.className = 'task-item' + (task.completed ? ' completed' : '');
         div.innerHTML = `
-          <strong>${task.subject}</strong> - ${task.time}<br>
-          <em>${task.topic}</em><br>
-          <button onclick="markComplete('${task.id}')">Complete</button>
-          <button onclick="reschedule('${task.id}')">Reschedule</button>
+          <strong>${name}</strong> (${task.time}) <br>${task.topic}<br>
+          <small>${date}</small><br>
+          <button onclick="markComplete('${task.id}', ${task.isCalendar})">Complete</button>
+          <button onclick="deleteTask('${task.id}', ${task.isCalendar})">Delete</button>
+          <button onclick="reschedule('${task.id}', ${task.isCalendar})">Reschedule</button>
         `;
-        taskList.appendChild(div);
+        if (task.completed) {
+          historyList.innerHTML += `<p><strong>${name}</strong> (${date}) - ${task.topic}</p>`;
+          completedTodayList.innerHTML += `<p>${name} - ${task.topic}</p>`;
+        } else {
+          taskList.appendChild(div);
+          if ((task.createdAt && new Date(task.createdAt).toDateString() === today) || (task.date && new Date(task.date).toDateString() === today)) {
+            incompleteList.innerHTML += `<p>${name} - ${task.topic}</p>`;
+          }
+        }
       });
-
-      streak.textContent = incomplete.length === 0 && todaysTasks.length
-        ? "✅ You're increasing your potential! Go ahead champ!"
-        : incomplete.length ? `⚠️ ${incomplete.length} backlog task(s)! Complete ASAP!` : "No tasks scheduled today.";
-
-      completedTodayList.innerHTML = completedToday.map(t => `<p>${t.subject} - ${t.topic}</p>`).join('');
-
-      document.getElementById('historyList').innerHTML = tasks.filter(t => t.completed)
-        .map(t => `<p>${t.subject} - ${t.topic}</p>`).join('');
     });
 
     onSnapshot(jobsRef, snap => {
-      const jobs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const jobList = document.getElementById('jobList');
       jobList.innerHTML = '';
-      jobs.forEach(job => {
-        const div = document.createElement('div');
-        div.className = 'job-item';
-        div.innerHTML = `
-          <strong>${job.company}</strong> - ${job.role} (${job.platform})<br>
-          LPA: ${job.lpa}<br>
-          <button onclick="deleteJob('${job.id}')">Delete</button>
-        `;
-        jobList.appendChild(div);
+      snap.docs.forEach(doc => {
+        const job = doc.data();
+        jobList.innerHTML += `
+          <div class="job-item">
+            <strong>${job.company}</strong> - ${job.role} (${job.platform})<br>LPA: ${job.lpa}<br>
+            <button onclick="deleteJob('${doc.id}')">Delete</button>
+          </div>`;
+      });
+    });
+
+    onSnapshot(notesRef, snap => {
+      const noteList = document.getElementById('noteList');
+      noteList.innerHTML = '';
+      snap.docs.forEach(doc => {
+        const note = doc.data();
+        noteList.innerHTML += `
+          <div class="note-item">
+            ${note.text}<br>
+            <small>${new Date(note.createdAt).toLocaleDateString()}</small><br>
+            <button onclick="deleteNote('${doc.id}')">Delete</button>
+          </div>`;
       });
     });
   </script>
